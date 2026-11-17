@@ -1,0 +1,212 @@
+{
+  "entities": {
+    "UserProgress": {
+      "title": "UserProgress",
+      "description": "Stores a learner's selected career track, CEFR level, bilingual setting, XP, streak, daily minutes, and completed lessons.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated user UID."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Learner display name."
+        },
+        "careerId": {
+          "type": "string",
+          "enum": ["retail", "cs", "hospitality", "office", "sales", "logistics", "healthcare", "tech", "general"],
+          "description": "Active workplace career track identifier."
+        },
+        "cefrLevel": {
+          "type": "string",
+          "enum": ["A1", "A2", "B1", "B2"],
+          "description": "Current CEFR English proficiency level."
+        },
+        "arabicEnabled": {
+          "type": "boolean",
+          "description": "Whether Arabic bilingual translations and hints are displayed."
+        },
+        "onboardingCompleted": {
+          "type": "boolean",
+          "description": "Whether the learner has completed onboarding."
+        },
+        "xp": {
+          "type": "integer",
+          "description": "Total earned XP."
+        },
+        "streakDays": {
+          "type": "integer",
+          "description": "Current learning streak in days."
+        },
+        "dailyMinutes": {
+          "type": "integer",
+          "description": "Minutes practiced today."
+        },
+        "dailyGoalMinutes": {
+          "type": "integer",
+          "description": "Daily practice goal in minutes."
+        },
+        "hearts": {
+          "type": "integer",
+          "description": "Remaining lesson hearts (0-5)."
+        },
+        "completedLessons": {
+          "type": "array",
+          "description": "List of completed lesson identifiers (max 50)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp updated via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "displayName",
+        "careerId",
+        "cefrLevel",
+        "arabicEnabled",
+        "onboardingCompleted",
+        "xp",
+        "streakDays",
+        "dailyMinutes",
+        "dailyGoalMinutes",
+        "hearts",
+        "completedLessons",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SavedVocab": {
+      "title": "SavedVocab",
+      "description": "Bookmarked workplace vocabulary card saved by the learner.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner user UID."
+        },
+        "word": {
+          "type": "string",
+          "description": "English vocabulary term."
+        },
+        "ipa": {
+          "type": "string",
+          "description": "IPA phonetic transcription."
+        },
+        "arabic": {
+          "type": "string",
+          "description": "Arabic translation."
+        },
+        "example": {
+          "type": "string",
+          "description": "Workplace example sentence."
+        },
+        "tip": {
+          "type": "string",
+          "description": "Pronunciation or usage tip."
+        },
+        "careerId": {
+          "type": "string",
+          "description": "Associated career track."
+        },
+        "mastered": {
+          "type": "boolean",
+          "description": "Whether the learner marked this word as mastered."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp updated via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "word",
+        "ipa",
+        "arabic",
+        "example",
+        "tip",
+        "careerId",
+        "mastered",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PracticeSession": {
+      "title": "PracticeSession",
+      "description": "AI Fluency Coach evaluation log for a spoken or written roleplay response.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner user UID."
+        },
+        "careerId": {
+          "type": "string",
+          "description": "Active career track ID."
+        },
+        "scenarioTitle": {
+          "type": "string",
+          "description": "Roleplay scenario title."
+        },
+        "userResponse": {
+          "type": "string",
+          "description": "User's spoken or typed reply."
+        },
+        "fluencyScore": {
+          "type": "integer",
+          "description": "AI fluency score from 0 to 100."
+        },
+        "aiFeedback": {
+          "type": "string",
+          "description": "Actionable coaching feedback from Gemini."
+        },
+        "suggestedPhrase": {
+          "type": "string",
+          "description": "Polished workplace phrasing suggestion."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp set via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "careerId",
+        "scenarioTitle",
+        "userResponse",
+        "fluencyScore",
+        "aiFeedback",
+        "suggestedPhrase",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProgress" },
+      "description": "Stores each learner's profile, career track, CEFR level, and XP/streak progress."
+    },
+    "/users/{userId}/saved_vocab/{vocabId}": {
+      "schema": { "$ref": "#/entities/SavedVocab" },
+      "description": "Stores each learner's saved workplace vocabulary flashcards."
+    },
+    "/users/{userId}/practice_sessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/PracticeSession" },
+      "description": "Stores each learner's AI Fluency Coach evaluation history."
+    }
+  }
+}

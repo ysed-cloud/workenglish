@@ -1,0 +1,169 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: deny by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidCareerId(careerId) {
+      return careerId in ['retail', 'cs', 'hospitality', 'office', 'sales', 'logistics', 'healthcare', 'tech', 'general'];
+    }
+
+    function isValidCefrLevel(level) {
+      return level in ['A1', 'A2', 'B1', 'B2'];
+    }
+
+    function isValidUserProgress(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+             data.careerId is string && isValidCareerId(data.careerId) &&
+             data.cefrLevel is string && isValidCefrLevel(data.cefrLevel) &&
+             data.arabicEnabled is bool &&
+             data.onboardingCompleted is bool &&
+             data.xp is int && data.xp >= 0 && data.xp <= 1000000 &&
+             data.streakDays is int && data.streakDays >= 0 && data.streakDays <= 10000 &&
+             data.dailyMinutes is int && data.dailyMinutes >= 0 && data.dailyMinutes <= 1440 &&
+             data.dailyGoalMinutes is int && data.dailyGoalMinutes >= 5 && data.dailyGoalMinutes <= 180 &&
+             data.hearts is int && data.hearts >= 0 && data.hearts <= 5 &&
+             data.completedLessons is list && data.completedLessons.size() <= 50 &&
+             (data.completedLessons.size() == 0 || data.completedLessons[0] is string) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidSavedVocab(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.word is string && data.word.size() >= 1 && data.word.size() <= 80 &&
+             data.ipa is string && data.ipa.size() <= 80 &&
+             data.arabic is string && data.arabic.size() <= 120 &&
+             data.example is string && data.example.size() >= 1 && data.example.size() <= 300 &&
+             data.tip is string && data.tip.size() <= 200 &&
+             data.careerId is string && data.careerId.size() >= 1 && data.careerId.size() <= 30 &&
+             data.mastered is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidPracticeSession(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.careerId is string && data.careerId.size() >= 1 && data.careerId.size() <= 30 &&
+             data.scenarioTitle is string && data.scenarioTitle.size() >= 1 && data.scenarioTitle.size() <= 120 &&
+             data.userResponse is string && data.userResponse.size() >= 1 && data.userResponse.size() <= 1000 &&
+             data.fluencyScore is int && data.fluencyScore >= 0 && data.fluencyScore <= 100 &&
+             data.aiFeedback is string && data.aiFeedback.size() >= 1 && data.aiFeedback.size() <= 2000 &&
+             data.suggestedPhrase is string && data.suggestedPhrase.size() <= 500 &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll([
+                         'userId', 'displayName', 'careerId', 'cefrLevel',
+                         'arabicEnabled', 'onboardingCompleted', 'xp', 'streakDays',
+                         'dailyMinutes', 'dailyGoalMinutes', 'hearts', 'completedLessons',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'displayName', 'careerId', 'cefrLevel',
+                         'arabicEnabled', 'onboardingCompleted', 'xp', 'streakDays',
+                         'dailyMinutes', 'dailyGoalMinutes', 'hearts', 'completedLessons',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidUserProgress(incoming());
+
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidUserProgress(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'displayName', 'careerId', 'cefrLevel', 'arabicEnabled',
+                         'onboardingCompleted', 'xp', 'streakDays', 'dailyMinutes',
+                         'dailyGoalMinutes', 'hearts', 'completedLessons', 'updatedAt'
+                       ]);
+
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      match /saved_vocab/{vocabId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(vocabId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(userId) &&
+                         isValidId(vocabId) &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().keys().hasAll([
+                           'userId', 'word', 'ipa', 'arabic', 'example',
+                           'tip', 'careerId', 'mastered', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'word', 'ipa', 'arabic', 'example',
+                           'tip', 'careerId', 'mastered', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidSavedVocab(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(userId) &&
+                         isValidId(vocabId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidSavedVocab(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'word', 'ipa', 'arabic', 'example', 'tip',
+                           'careerId', 'mastered', 'updatedAt'
+                         ]);
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(vocabId);
+      }
+
+      match /practice_sessions/{sessionId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(sessionId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(userId) &&
+                         isValidId(sessionId) &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().keys().hasAll([
+                           'userId', 'careerId', 'scenarioTitle', 'userResponse',
+                           'fluencyScore', 'aiFeedback', 'suggestedPhrase', 'createdAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'careerId', 'scenarioTitle', 'userResponse',
+                           'fluencyScore', 'aiFeedback', 'suggestedPhrase', 'createdAt'
+                         ]) &&
+                         isValidPracticeSession(incoming());
+
+        allow update: if false;
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(sessionId);
+      }
+    }
+  }
+}
